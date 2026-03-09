@@ -23,9 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const prompt = `
-      作为心理健康专家，请对以下数据进行极简分析(200字内)。
-      数据：指数${ehi?.toFixed(0)}, 压力${averages["情绪压力"]?.toFixed(1)}, 睡眠${averages["睡眠质量"]?.toFixed(1)}, 专注${averages["专注能力"]?.toFixed(1)}, 疲劳${averages["心理疲劳"]?.toFixed(1)}。
-      要求：1.一句话总结状态；2.分析最差维度；3.给2条微建议。
+      心理简析(150字):指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。
+      要求:1.总结;2.分析最差项;3.给2条建议。
     `;
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {

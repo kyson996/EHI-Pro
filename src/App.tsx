@@ -380,10 +380,24 @@ ${result.aiAdvice || '正在生成中...'}
                     <div className="space-y-4 text-zinc-300 leading-relaxed whitespace-pre-wrap">
                       {result.aiAdvice}
                     </div>
-                  ) : (
+                  ) : isAnalyzing ? (
                     <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-4">
                       <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
                       <p>AI 正在深度解析您的情绪数据...</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-4 text-center">
+                      <AlertCircle className="w-12 h-12 text-rose-400/50" />
+                      <p className="max-w-xs text-sm">AI 分析暂时不可用。DeepSeek 响应较慢或超时，请重试。</p>
+                      <button 
+                        onClick={async () => {
+                          const advice = await generateAIAdvice(result.ehi, result.scores);
+                          setResult({ ...result, aiAdvice: advice });
+                        }}
+                        className="px-6 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-full text-sm font-medium transition-colors border border-blue-500/30"
+                      >
+                        再次生成报告
+                      </button>
                     </div>
                   )}
                 </div>

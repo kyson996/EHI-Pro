@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/analyze"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["api/**"]

@@ -23,21 +23,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const prompt = `
-      作为心理健康专家，请对以下 EHI-4D 情绪健康数据进行极简、专业的分析。
-      
-      数据：
-      - 综合指数: ${ehi?.toFixed(0)}/100
-      - 情绪压力: ${averages["情绪压力"]?.toFixed(1)}/5
-      - 睡眠质量: ${averages["睡眠质量"]?.toFixed(1)}/5
-      - 专注能力: ${averages["专注能力"]?.toFixed(1)}/5
-      - 心理疲劳: ${averages["心理疲劳"]?.toFixed(1)}/5
-      
-      要求：
-      1. 状态总结：用一句话概括当前心理状态。
-      2. 核心分析：重点分析得分最高（最差）的维度。
-      3. 改善行动：提供3条立即可以执行的微小习惯建议。
-      
-      格式：Markdown，字数控制在300字以内。
+      作为心理健康专家，请对以下数据进行极简分析(200字内)。
+      数据：指数${ehi?.toFixed(0)}, 压力${averages["情绪压力"]?.toFixed(1)}, 睡眠${averages["睡眠质量"]?.toFixed(1)}, 专注${averages["专注能力"]?.toFixed(1)}, 疲劳${averages["心理疲劳"]?.toFixed(1)}。
+      要求：1.一句话总结状态；2.分析最差维度；3.给2条微建议。
     `;
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
@@ -49,17 +37,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "你是一位高效、专业的心理健康分析助手。" },
+          { role: "system", content: "你是一位极简主义心理专家，回答必须极其精炼。" },
           { role: "user", content: prompt }
         ],
-        max_tokens: 800,
-        temperature: 0.7
+        max_tokens: 400,
+        temperature: 0.6
       })
     });
     
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || "DeepSeek 调用失败");
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("DeepSeek API Error Raw:", errorData);
+      return res.status(response.status).json({ error: "AI 接口响应异常", details: "DeepSeek 服务繁忙，请稍后重试。" });
+    }
 
+    const data = await response.json();
     res.status(200).json({ text: data.choices[0].message.content });
 
   } catch (error: any) {

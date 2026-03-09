@@ -91,17 +91,21 @@ export default function App() {
         body: JSON.stringify({ ehi, averages }),
       });
 
+      if (!response.ok) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.details || json.error || `服务器错误 (${response.status})`);
+        } catch (e) {
+          throw new Error(`分析超时或服务繁忙。DeepSeek 响应较慢，请再次点击“生成报告”重试。`);
+        }
+      }
+
       const data = await response.json();
-      if (!response.ok) throw new Error(data.details || data.error || 'Failed to fetch AI advice');
-      
       return data.text;
     } catch (error: any) {
       console.error("AI Analysis failed:", error);
-      let msg = error.message || "请稍后再试";
-      if (msg.includes("API key not valid")) {
-        msg = "API 密钥无效。请检查 AI Studio 的 Settings -> Secrets 配置。";
-      }
-      return `AI 分析暂时不可用: ${msg}`;
+      return `AI 分析暂时不可用: ${error.message}`;
     } finally {
       setIsAnalyzing(false);
     }

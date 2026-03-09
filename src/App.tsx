@@ -92,10 +92,10 @@ export default function App() {
         body: JSON.stringify({ ehi, averages }),
       });
 
-      if (!response.ok) throw new Error("连接失败");
+      if (!response.ok) throw new Error("AI 暂时无法连接，请重试");
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error("无法读取流");
+      if (!reader) throw new Error("无法读取分析数据");
 
       const decoder = new TextDecoder();
       while (true) {
@@ -103,7 +103,7 @@ export default function App() {
         if (done) break;
         const chunk = decoder.decode(value);
         fullText += chunk;
-        // 实时更新 UI
+        // 实时更新结果
         setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
       }
       return fullText;

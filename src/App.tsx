@@ -10,9 +10,9 @@ import {
 } from 'recharts';
 import { 
   Brain, Moon, Target, Battery, ChevronRight, ChevronLeft, 
-  RotateCcw, Sparkles, History, Info, CheckCircle2, AlertCircle
+  RotateCcw, Sparkles, History, Info, CheckCircle2, AlertCircle,
+  Share2, Copy, Download
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { Dimension, AssessmentResult } from './types';
 import { QUESTIONS, WEIGHTS, SCORE_LABELS } from './constants';
 import { clsx, type ClassValue } from 'clsx';
@@ -21,8 +21,6 @@ import { twMerge } from 'tailwind-merge';
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export default function App() {
   const [step, setStep] = useState<'welcome' | 'quiz' | 'result' | 'history'>('welcome');
@@ -87,34 +85,23 @@ export default function App() {
   const generateAIAdvice = async (ehi: number, averages: Record<Dimension, number>) => {
     setIsAnalyzing(true);
     try {
-      const prompt = `
-        你是一位资深的心理健康专家。基于以下 EHI-4D 情绪健康评估数据，请提供一份专业、温暖且个性化的分析报告。
-        
-        评估得分 (0-5分，分数越高代表该维度负面情况越严重):
-        - 情绪压力: ${averages[Dimension.STRESS].toFixed(1)}
-        - 睡眠质量: ${averages[Dimension.SLEEP].toFixed(1)}
-        - 专注能力: ${averages[Dimension.FOCUS].toFixed(1)}
-        - 心理疲劳: ${averages[Dimension.FATIGUE].toFixed(1)}
-        
-        综合 EHI 指数: ${ehi.toFixed(1)} (100分为满分，分数越高越健康)
-        
-        请包括：
-        1. 核心状态总结 (一句话)
-        2. 针对得分最高（最差）维度的深度分析
-        3. 3条具体的、可操作的改善建议
-        
-        请使用 Markdown 格式，语气要专业且富有同理心。
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-preview",
-        contents: prompt,
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ehi, averages }),
       });
 
-      return response.text;
-    } catch (error) {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.details || data.error || 'Failed to fetch AI advice');
+      
+      return data.text;
+    } catch (error: any) {
       console.error("AI Analysis failed:", error);
-      return "AI 分析暂时不可用，请参考基础建议。";
+      let msg = error.message || "请稍后再试";
+      if (msg.includes("API key not valid")) {
+        msg = "API 密钥无效。请检查 AI Studio 的 Settings -> Secrets 配置。";
+      }
+      return `AI 分析暂时不可用: ${msg}`;
     } finally {
       setIsAnalyzing(false);
     }
@@ -159,6 +146,27 @@ export default function App() {
     if (ehi >= 60) return "轻度情绪压力";
     if (ehi >= 40) return "中度情绪压力";
     return "较高情绪风险";
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`${label}已复制到剪贴板`);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
+
+  const shareResult = () => {
+    if (!result) return;
+    const shareText = `【EHI-4D 情绪健康评估报告】
+日期：${result.date}
+综合指数：${result.ehi.toFixed(0)} (${getStatusText(result.ehi)})
+AI 分析建议：
+${result.aiAdvice || '正在生成中...'}
+
+评估链接：${window.location.href}`;
+    copyToClipboard(shareText, '评估结果');
   };
 
   return (
@@ -375,6 +383,23 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={shareResult}
+                  className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-semibold hover:bg-emerald-400 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                >
+                  <Share2 className="w-4 h-4" />
+                  分享结果
+                </button>
+                <button 
+                  onClick={() => copyToClipboard(window.location.href, '应用链接')}
+                  className="flex-1 py-4 glass rounded-2xl font-semibold hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  分享应用
+                </button>
               </div>
 
               <div className="flex gap-4">

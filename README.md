@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# EHI-4D 情绪健康 AI 评估系统
 
-# Run and deploy your AI Studio app
+基于情绪压力、睡眠质量、专注能力、心理疲劳的多维情绪健康评估模型，由 DeepSeek AI 提供深度分析建议。
 
-This contains everything you need to run your app locally.
+## 🚀 快速部署到 Vercel
 
-View your app in AI Studio: https://ai.studio/apps/fba765ba-eeac-4aa8-927d-a99432786bb9
+1. 将此仓库 Fork 到你的 GitHub。
+2. 登录 [Vercel](https://vercel.com/)，点击 **Add New Project** 并导入此仓库。
+3. 在 **Environment Variables** (环境变量) 中添加：
+   - `DEEPSEEK_API_KEY`: 你的 DeepSeek API 密钥。
+4. 点击 **Deploy**，搞定！
 
-## Run Locally
+## 🛠️ 本地开发
 
-**Prerequisites:**  Node.js
+1. `npm install`
+2. `npm run dev`
+3. 访问 `http://localhost:3000`
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📄 许可证
+MIT

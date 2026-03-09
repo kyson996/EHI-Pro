@@ -1,5 +1,5 @@
 {
-  "name": "EHI-4D Emotion Health Index",
-  "description": "A professional multi-dimensional emotional health assessment platform powered by AI.",
+  "name": "EHI-4D 情绪健康 AI 评估",
+  "description": "基于情绪压力、睡眠质量、专注能力、心理疲劳的多维情绪健康评估模型，由 DeepSeek AI 提供深度分析建议。",
   "requestFramePermissions": []
 }

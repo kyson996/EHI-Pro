@@ -84,6 +84,7 @@ export default function App() {
 
   const generateAIAdvice = async (ehi: number, averages: Record<Dimension, number>) => {
     setIsAnalyzing(true);
+    let fullText = "";
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -91,12 +92,21 @@ export default function App() {
         body: JSON.stringify({ ehi, averages }),
       });
 
-      if (!response.ok) {
-        throw new Error(`分析超时或服务繁忙。`);
-      }
+      if (!response.ok) throw new Error("连接失败");
 
-      const data = await response.json();
-      return data.text;
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("无法读取流");
+
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        fullText += chunk;
+        // 实时更新 UI
+        setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
+      }
+      return fullText;
     } catch (error: any) {
       console.error("AI Analysis failed:", error);
       return null;

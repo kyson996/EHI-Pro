@@ -22,10 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const prompt = `
-      心理简析(150字):指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。
-      要求:1.总结;2.分析最差项;3.给2条建议。
-    `;
+    const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.一句话总结;2.分析最差项;3.给2条建议。字数<100。`;
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
@@ -36,11 +33,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "你是一位极简主义心理专家，回答必须极其精炼。" },
+          { role: "system", content: "极简心理专家，仅输出干货，不带废话。" },
           { role: "user", content: prompt }
         ],
-        max_tokens: 400,
-        temperature: 0.6
+        max_tokens: 200,
+        temperature: 0.5
       })
     });
     

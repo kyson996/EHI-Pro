@@ -92,20 +92,14 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        try {
-          const json = JSON.parse(text);
-          throw new Error(json.details || json.error || `服务器错误 (${response.status})`);
-        } catch (e) {
-          throw new Error(`分析超时或服务繁忙。DeepSeek 响应较慢，请再次点击“生成报告”重试。`);
-        }
+        throw new Error(`分析超时或服务繁忙。`);
       }
 
       const data = await response.json();
       return data.text;
     } catch (error: any) {
       console.error("AI Analysis failed:", error);
-      return `AI 分析暂时不可用: ${error.message}`;
+      return null;
     } finally {
       setIsAnalyzing(false);
     }
@@ -388,13 +382,15 @@ ${result.aiAdvice || '正在生成中...'}
                   ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-4 text-center">
                       <AlertCircle className="w-12 h-12 text-rose-400/50" />
-                      <p className="max-w-xs text-sm">AI 分析暂时不可用。DeepSeek 响应较慢或超时，请重试。</p>
+                      <p className="max-w-xs text-sm">AI 分析超时或 DeepSeek 繁忙。请重试。</p>
                       <button 
                         onClick={async () => {
                           const advice = await generateAIAdvice(result.ehi, result.scores);
-                          setResult({ ...result, aiAdvice: advice });
+                          if (advice) {
+                            setResult({ ...result, aiAdvice: advice });
+                          }
                         }}
-                        className="px-6 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-full text-sm font-medium transition-colors border border-blue-500/30"
+                        className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-semibold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
                       >
                         再次生成报告
                       </button>

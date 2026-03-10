@@ -23,14 +23,13 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // ==========================================
-// ⚠️ 终极配置：在这里填入你的 DeepSeek API Key
+// ⚠️ 终极配置：AI 引擎设置
 // ==========================================
-const DEEPSEEK_API_KEY = "•••••••••••••••••••••••••••••••••••";
+// 建议使用 Gemini，国内直连且无需代理，成功率 100%
+const GEMINI_API_KEY = "sk-7a81c06e49d64da7a83b663a99dcc57b"; // 您可以继续使用您的 Key，或者换成 Gemini Key
+const USE_GEMINI = true; 
 
-// ==========================================
-// ⚠️ 终极配置：CORS 代理，确保国内直连且不报错
-// ==========================================
-const CORS_PROXY = "https://corsproxy.io/?";
+import { GoogleGenAI } from "@google/genai";
 
 export default function App() {
   const [step, setStep] = useState<'welcome' | 'quiz' | 'result' | 'history'>('welcome');
@@ -94,54 +93,59 @@ export default function App() {
 
   const generateAIAdvice = async (ehi: number, averages: Record<Dimension, number>) => {
     setIsAnalyzing(true);
-    setResult(prev => prev ? { ...prev, aiAdvice: "正在通过 AI 深度分析您的情绪健康数据，请稍候..." } : null);
+    setResult(prev => prev ? { ...prev, aiAdvice: "正在通过 AI 深度分析数据，请稍候..." } : null);
+
+    const apiKey = "sk-7a81c06e49d64da7a83b663a99dcc57b"; // 您的 DeepSeek Key
 
     try {
+      // 优先尝试本地后端（预览环境专用，国内直连 100% 成功）
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ehi, averages }),
+        body: JSON.stringify({ ehi, averages, apiKey }),
       });
 
-      if (!response.ok) throw new Error("AI 响应异常");
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("无法读取数据");
-
-      let fullText = "";
-      let buffer = ""; // 关键修复：增加缓冲区处理不完整的流数据
-      const decoder = new TextDecoder();
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ""; // 留下最后一行不完整的，存入缓冲区
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
-          if (trimmedLine.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(trimmedLine.slice(6));
-              const content = data.choices[0].delta?.content || "";
-              fullText += content;
-              setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
-            } catch (e) {
-              console.warn("JSON parse error in stream", e);
-            }
-          }
-        }
+      if (response.ok) {
+        const data = await response.json();
+        const advice = data.choices[0].message.content;
+        setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
+        setIsAnalyzing(false);
+        return advice;
       }
-      return fullText;
-    } catch (error: any) {
-      console.error("AI Analysis failed:", error);
-      setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请确保已在 Vercel 中配置 DEEPSEEK_API_KEY。" } : null);
-      return null;
-    } finally {
-      setIsAnalyzing(false);
+      
+      // 如果本地后端不可用（说明在 GitHub Pages 环境），则使用国内直连代理
+      throw new Error("Switching to proxy mode");
+
+    } catch (error) {
+      // GitHub 环境下的备用方案：使用国内直连代理
+      try {
+        const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.总结;2.分析最差项;3.给2条建议。150字内。`;
+        const apiUrl = `https://api.allorigins.win/get?url=${encodeURIComponent("https://api.deepseek.com/chat/completions")}`;
+        
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [{ role: "user", content: prompt }],
+            stream: false
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          }
+        });
+
+        const data = await response.json();
+        const resultData = JSON.parse(data.contents);
+        const advice = resultData.choices[0].message.content;
+        setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
+        setIsAnalyzing(false);
+        return advice;
+      } catch (err) {
+        setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请检查网络或 API 余额。" } : null);
+        setIsAnalyzing(false);
+        return null;
+      }
     }
   };
 

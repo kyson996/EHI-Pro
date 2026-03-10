@@ -97,31 +97,19 @@ export default function App() {
 
     const apiKey = "sk-7a81c06e49d64da7a83b663a99dcc57b"; // 您的 DeepSeek Key
 
-    try {
-      // 优先尝试本地后端（预览环境专用，国内直连 100% 成功）
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ehi, averages, apiKey }),
-      });
+    // 备用代理列表，确保国内直连成功率
+    const proxies = [
+      (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+    ];
 
-      if (response.ok) {
-        const data = await response.json();
-        const advice = data.choices[0].message.content;
-        setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
-        setIsAnalyzing(false);
-        return advice;
-      }
-      
-      // 如果本地后端不可用（说明在 GitHub Pages 环境），则使用国内直连代理
-      throw new Error("Switching to proxy mode");
-
-    } catch (error) {
-      // GitHub 环境下的备用方案：使用国内直连代理
+    for (const getProxyUrl of proxies) {
       try {
+        const targetUrl = "https://api.deepseek.com/chat/completions";
+        const apiUrl = getProxyUrl(targetUrl);
         const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.总结;2.分析最差项;3.给2条建议。150字内。`;
-        const apiUrl = `https://api.allorigins.win/get?url=${encodeURIComponent("https://api.deepseek.com/chat/completions")}`;
-        
+
         const response = await fetch(apiUrl, {
           method: "POST",
           body: JSON.stringify({
@@ -135,18 +123,35 @@ export default function App() {
           }
         });
 
+        if (!response.ok) continue;
+
         const data = await response.json();
-        const resultData = JSON.parse(data.contents);
-        const advice = resultData.choices[0].message.content;
-        setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
-        setIsAnalyzing(false);
-        return advice;
+        
+        // 处理不同代理的返回格式
+        let advice = "";
+        if (data.contents) {
+          // allorigins 格式
+          const resultData = JSON.parse(data.contents);
+          advice = resultData.choices[0].message.content;
+        } else {
+          // 其他代理格式
+          advice = data.choices?.[0]?.message?.content;
+        }
+
+        if (advice) {
+          setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
+          setIsAnalyzing(false);
+          return advice;
+        }
       } catch (err) {
-        setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请检查网络或 API 余额。" } : null);
-        setIsAnalyzing(false);
-        return null;
+        console.warn("当前代理失效，尝试下一个...");
+        continue;
       }
     }
+
+    setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请检查网络或 API 余额。" } : null);
+    setIsAnalyzing(false);
+    return null;
   };
 
   const finishQuiz = async () => {

@@ -109,23 +109,29 @@ export default function App() {
       if (!reader) throw new Error("无法读取数据");
 
       let fullText = "";
+      let buffer = ""; // 关键修复：增加缓冲区处理不完整的流数据
       const decoder = new TextDecoder();
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
         
-        // 处理流式输出
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ""; // 留下最后一行不完整的，存入缓冲区
+
         for (const line of lines) {
-          if (line.includes('[DONE]')) continue;
-          if (line.startsWith('data: ')) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+          if (trimmedLine.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(trimmedLine.slice(6));
               const content = data.choices[0].delta?.content || "";
               fullText += content;
               setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
-            } catch (e) {}
+            } catch (e) {
+              console.warn("JSON parse error in stream", e);
+            }
           }
         }
       }

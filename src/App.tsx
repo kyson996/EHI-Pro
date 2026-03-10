@@ -22,6 +22,16 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// ==========================================
+// ⚠️ 终极配置：在这里填入你的 DeepSeek API Key
+// ==========================================
+const DEEPSEEK_API_KEY = "•••••••••••••••••••••••••••••••••••";
+
+// ==========================================
+// ⚠️ 终极配置：CORS 代理，确保国内直连且不报错
+// ==========================================
+const CORS_PROXY = "https://corsproxy.io/?";
+
 export default function App() {
   const [step, setStep] = useState<'welcome' | 'quiz' | 'result' | 'history'>('welcome');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -84,7 +94,8 @@ export default function App() {
 
   const generateAIAdvice = async (ehi: number, averages: Record<Dimension, number>) => {
     setIsAnalyzing(true);
-    let fullText = "";
+    setResult(prev => prev ? { ...prev, aiAdvice: "正在通过 AI 深度分析您的情绪健康数据，请稍候..." } : null);
+
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -92,24 +103,36 @@ export default function App() {
         body: JSON.stringify({ ehi, averages }),
       });
 
-      if (!response.ok) throw new Error("AI 响应超时");
+      if (!response.ok) throw new Error("AI 响应异常");
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("无法读取数据");
 
+      let fullText = "";
       const decoder = new TextDecoder();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value);
-        fullText += chunk;
-        setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
+        
+        // 处理流式输出
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          if (line.includes('[DONE]')) continue;
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const content = data.choices[0].delta?.content || "";
+              fullText += content;
+              setResult(prev => prev ? { ...prev, aiAdvice: fullText } : null);
+            } catch (e) {}
+          }
+        }
       }
       return fullText;
     } catch (error: any) {
       console.error("AI Analysis failed:", error);
-      // 如果失败，确保 aiAdvice 为空，这样重试按钮才会显示
-      setResult(prev => prev ? { ...prev, aiAdvice: "" } : null);
+      setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请确保已在 Vercel 中配置 DEEPSEEK_API_KEY。" } : null);
       return null;
     } finally {
       setIsAnalyzing(false);

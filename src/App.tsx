@@ -96,60 +96,54 @@ export default function App() {
     setResult(prev => prev ? { ...prev, aiAdvice: "正在通过 AI 深度分析数据，请稍候..." } : null);
 
     const apiKey = "sk-7a81c06e49d64da7a83b663a99dcc57b"; // 您的 DeepSeek Key
+    const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.总结;2.分析最差项;3.给2条建议。150字内。`;
 
     // 备用代理列表，确保国内直连成功率
     const proxies = [
-      (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      // 直接调用（如果用户有 VPN 或浏览器允许）
+      { name: "Direct", url: "https://api.deepseek.com/chat/completions", isProxy: false },
+      // 备用代理 1
+      { name: "Proxy1", url: "https://api.codetabs.com/v1/proxy?quest=https://api.deepseek.com/chat/completions", isProxy: true },
+      // 备用代理 2
+      { name: "Proxy2", url: "https://corsproxy.io/?https://api.deepseek.com/chat/completions", isProxy: true }
     ];
 
-    for (const getProxyUrl of proxies) {
+    for (const proxy of proxies) {
       try {
-        const targetUrl = "https://api.deepseek.com/chat/completions";
-        const apiUrl = getProxyUrl(targetUrl);
-        const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.总结;2.分析最差项;3.给2条建议。150字内。`;
-
-        const response = await fetch(apiUrl, {
+        console.log(`Trying AI via ${proxy.name}...`);
+        const response = await fetch(proxy.url, {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey.trim()}`
+          },
           body: JSON.stringify({
             model: "deepseek-chat",
             messages: [{ role: "user", content: prompt }],
             stream: false
-          }),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          }
+          })
         });
 
-        if (!response.ok) continue;
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errText.substring(0, 50)}`);
+        }
 
         const data = await response.json();
-        
-        // 处理不同代理的返回格式
-        let advice = "";
-        if (data.contents) {
-          // allorigins 格式
-          const resultData = JSON.parse(data.contents);
-          advice = resultData.choices[0].message.content;
-        } else {
-          // 其他代理格式
-          advice = data.choices?.[0]?.message?.content;
-        }
+        const advice = data.choices?.[0]?.message?.content;
 
         if (advice) {
           setResult(prev => prev ? { ...prev, aiAdvice: advice } : null);
           setIsAnalyzing(false);
           return advice;
         }
-      } catch (err) {
-        console.warn("当前代理失效，尝试下一个...");
+      } catch (err: any) {
+        console.warn(`${proxy.name} failed:`, err.message);
         continue;
       }
     }
 
-    setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请检查网络或 API 余额。" } : null);
+    setResult(prev => prev ? { ...prev, aiAdvice: "AI 分析暂时不可用。请检查：1. Key 是否有余额；2. 网络是否通畅（国内直连有时不稳定，建议多试几次）。" } : null);
     setIsAnalyzing(false);
     return null;
   };

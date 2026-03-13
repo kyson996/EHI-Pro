@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer 
 } from 'recharts';
@@ -96,7 +97,22 @@ export default function App() {
     setResult(prev => prev ? { ...prev, aiAdvice: "正在通过 AI 深度分析数据，请稍候..." } : null);
 
     const apiKey = "sk-7a81c06e49d64da7a83b663a99dcc57b"; // 您的 DeepSeek Key
-    const prompt = `分析数据:指数${ehi?.toFixed(0)},压力${averages["情绪压力"]?.toFixed(1)},睡眠${averages["睡眠质量"]?.toFixed(1)},专注${averages["专注能力"]?.toFixed(1)},疲劳${averages["心理疲劳"]?.toFixed(1)}。要求:1.总结;2.分析最差项;3.给2条建议。150字内。`;
+    const prompt = `你是一位资深心理健康专家。请分析以下评估数据：
+- 情绪指数 (EHI): ${ehi?.toFixed(0)}/100 (0为极差，100为完美)
+- 情绪压力: ${averages["情绪压力"]?.toFixed(1)}/5
+- 睡眠质量: ${averages["睡眠质量"]?.toFixed(1)}/5
+- 专注能力: ${averages["专注能力"]?.toFixed(1)}/5
+- 心理疲劳: ${averages["心理疲劳"]?.toFixed(1)}/5
+
+【重要准则】
+1. 分数极性：1-5分的维度中，5分代表“最糟糕/最严重”，1分代表“最健康”。
+2. 警报：如果EHI指数低于15分，说明用户处于极高风险状态，请务必在回复的开头明确建议用户立即寻求专业心理医生或精神科医生的帮助。
+
+要求：
+1. 给出专业总结。
+2. 分析表现最差（分数最高）的维度。
+3. 提供2条具体的微习惯建议。
+150字内。`;
 
     // 备用代理列表，确保国内直连成功率
     const proxies = [
@@ -374,6 +390,12 @@ ${result.aiAdvice || '正在生成中...'}
                   <CheckCircle2 className={cn("w-5 h-5", getStatusColor(result.ehi))} />
                   <span className="font-medium">{getStatusText(result.ehi)}</span>
                 </div>
+
+                {result.ehi < 15 && (
+                  <div className="mt-6 p-4 bg-rose-500/20 border border-rose-500/50 rounded-2xl text-rose-400 text-sm font-medium animate-pulse">
+                    ⚠️ 检测到极高心理风险，建议立即咨询专业心理医生。
+                  </div>
+                )}
               </div>
 
               <div className="glass rounded-[2rem] p-8">
@@ -414,8 +436,8 @@ ${result.aiAdvice || '正在生成中...'}
 
                 <div className="prose prose-invert max-w-none">
                   {result.aiAdvice ? (
-                    <div className="space-y-4 text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                      {result.aiAdvice}
+                    <div className="space-y-4 text-zinc-300 leading-relaxed markdown-content">
+                      <ReactMarkdown>{result.aiAdvice}</ReactMarkdown>
                     </div>
                   ) : isAnalyzing ? (
                     <div className="flex flex-col items-center justify-center h-64 text-zinc-500 space-y-4">
